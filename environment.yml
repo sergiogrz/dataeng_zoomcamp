@@ -1,0 +1,11 @@
+name: dataeng_zc
+dependencies:
+  - python=3.9
+  - pip
+  - pip:
+    - pandas
+    - pgcli
+    - psycopg-binary
+    - psycopg2-binary
+    - sqlalchemy
+    - notebook

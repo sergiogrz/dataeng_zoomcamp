@@ -6,7 +6,7 @@
 ## Table of contents
 * [Python packages required for this section](#python-packages-required-for-this-section).
 * [Running Postgres and Pgcli](#running-postgres-and-pgcli).
-* [Running Postgres and PgAdmin](#running-postgres-and-pgadmin).
+* [Running Postgres and pgAdmin](#running-postgres-and-pgadmin).
     + Via Docker.
     + Via Docker Compose.
 * [Ingesting NY Taxi data to Postgres](#ingesting-ny-taxi-data-to-postgres).

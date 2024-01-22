@@ -4,3 +4,4 @@
 
 * [Docker + Postgres](./1_docker_postgres/).
 * [GCP + Terraform](./2_gcp_terraform/).
+* [Module 1 homework](./homework/).

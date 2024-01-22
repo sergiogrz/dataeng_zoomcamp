@@ -3,3 +3,10 @@ yellow_*.csv*
 taxi_zone_lookup.csv
 output.csv*
 .ipynb_checkpoints
+
+
+# Terraform (initialized by terraform init, apply or destroy)
+.terraform
+.terraform.lock.*
+terraform.tfstate
+terraform.tfstate.backup

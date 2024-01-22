@@ -1,5 +1,8 @@
 # Docker + Postgres
 
+> Course video sources: videos `1.2.x` from the [DE Zoomcamp playlist](https://www.youtube.com/watch?v=EYNwNlOrpr0&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb).
+
+
 ## Table of contents
 * [Python packages required for this section](#python-packages-required-for-this-section).
 * [Running Postgres and Pgcli](#running-postgres-and-pgcli).
@@ -19,6 +22,7 @@
 Listed in [environment.yml](./../../environment.yml).
 
 * **Pandas**.
+* **Jupyter Notebook**.
 * **Pgcli:** command line interface for Postgres.
 * **Psycopg:** Postgres adapter for Pyhton.
 * **SQLAlchemy:** Python SQL toolkit.

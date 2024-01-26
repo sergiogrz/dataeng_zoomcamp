@@ -27,7 +27,7 @@ conda activate dataeng_zc
 ## Course structure
 
 * [Module 1 - Containerization and Infrastructure as Code](./01_containerization_and_iac/).
-* Module 2 - Workflow orchestration.
+* [Module 2 - Workflow orchestration](./02_workflow_orchestration/).
 * Workshop 1 - Data ingestion.
 * Module 3 - Data Warehouse.
 * Module 4 - Analytics engineering.
@@ -40,4 +40,4 @@ conda activate dataeng_zc
 
 ## Overview
 
-![overview diagram](./images/overview_diagram.jpeg)
+<img src="./images/overview_diagram.jpeg" alt="overview diagram">

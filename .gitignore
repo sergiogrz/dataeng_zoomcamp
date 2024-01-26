@@ -4,10 +4,17 @@ green_*.csv*
 taxi_zone_lookup.csv
 output.csv*
 .ipynb_checkpoints
+.env
 
 
-# Terraform (initialized by terraform init, apply or destroy)
+# Terraform
 .terraform
 .terraform.lock.*
 terraform.tfstate
 terraform.tfstate.backup
+
+
+# Mage
+mage_data
+magic-zoomcamp
+02_*/*.csv

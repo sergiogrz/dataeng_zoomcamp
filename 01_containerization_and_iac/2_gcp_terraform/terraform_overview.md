@@ -32,7 +32,8 @@
 
 Terraform creates and manages resources on cloud platforms and other services through their application programming interfaces (APIs). Providers enable Terraform to work with virtually any platform or service with an accessible API.
 
-![terraform](../../images/01_terraform.png)
+
+<img src="../../images/01_terraform.png" alt="terraform">
 
 
 ## Key Terraform commands
@@ -51,8 +52,7 @@ Terraform creates and manages resources on cloud platforms and other services th
     * Removes your stack from the Cloud.
 
 
-![terraform workflow](../../images/01_terraform_workflow.png)
-
+<img src="../../images/01_terraform_workflow.png" alt="terraform workflow">
 
 ## Terraform directory files
 

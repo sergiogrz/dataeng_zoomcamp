@@ -15,7 +15,22 @@
     + Data loader.
     + Transformer.
     + Data exporter.
-
+* [ETL: API to GCS](#etl-api-to-gcs).
+    + Configuring GCP.
+    + Writing an ETL pipeline.
+        - Writing to partitioned parquet files.
+* [ETL: GCS to BigQuery](#etl-gcs-to-bigquery).
+    + Data loader.
+    + Transformer.
+    + Data exporter.
+* [Scheduling](#scheduling).
+* [Parameterized execution](#parameterized-execution).
+    + Backfills.
+* [Deployment](#deployment).
+    + Deployment prerequesites.
+    + Google Cloud permissions.
+    + Deploying to Google Cloud.
+* [Module 2 Homework](./homework/).
 
 
 
@@ -312,5 +327,302 @@ def export_data_to_postgres(df: DataFrame, **kwargs) -> None:
 
 
 As in [Configuring Postgres](#configuring-postgres) section, you can create a SQL data loader just to check if the data has been correctly loaded (for example with a `SELECT * FROM ny_taxi.yellow_taxi_data LIMIT 10;` query).
-SELECT * FROM ny_taxi.yellow_taxi_data LIMIT 10;
 
+
+
+
+## ETL: API to GCS
+
+We've written data ocally to a database. In this section, we'll walk through the process of using Mage to extract, transform, and load data from an API to Google Cloud Storage (GCS).
+
+
+### Configuring GCP
+
+* Create (or reuse an existing) GCS bucket.
+* Create a service account for connecting Mage to GCP.
+    + Service account name: _mage-zoomcamp_.
+    + Grant roles: Owner.
+* Service account key.
+    + Download the JSON file, rename it as `google_credentials_mage.json` and move it to the Mage project root directory, since we have bind-mounted it to `/home/src/` in the Mage container when we started the service.
+    + Edit the Google connection in the `io_config.yaml` file. In this case we can do it directly in the `default` profile, as if it were the production environment.
+        ```yml
+        # Google
+        GOOGLE_SERVICE_ACC_KEY_FILEPATH: "/home/src/google_credentials_mage.json"
+        GOOGLE_LOCATION: EU # Optional
+        ```
+* Test the connection to GCP:
+    + BigQuery: you can create a new SQL data loader, or reuse the one created earlier (`test_postgres`), indicating a BigQuery connection and default profile, and finally running the `SELECT 1;` query.
+    + Cloud Storage:
+        - Upload a CSV file to GCS.
+        - Create a Python Google Cloud Storage data loader (name it as `test_gcs`) and edit the following values:
+            ```py
+            bucket_name = "<your bucket name>"
+            object_key = "<your file name>"
+            ```
+        - Run the block and check if you get the expected output.
+
+
+
+### Writing an ETL pipeline
+
+We are going to load the same dataset that we did for Postgres, so we can reuse both the data loader and the transformer.
+
+In the UI, start a new batch pipeline, and rename it as `api_to_gcs`. There you can just drag and drop `load_api_data.py` and `transform_taxi_data.py` scripts from the project tree view to the Notebook area situated in the center of the console. Then, from the tree view of the pipeline, connect both blocks, so that the output of the former corresponds to the input of the latter.
+
+Next, create a Google Cloud Storage data exporter and name it as `taxi_data_to_gcs_parquet`, and make sure it's attached to the transformer. In the script, edit the following variables:
+* bucket_name = "<your bucket name>"
+* object_key = "nyc_taxi_data.parquet". From this, Mage is going to infer the parquet format.
+
+Execute the whole pipeline.
+
+Once this is done, you should see the parquet file in the Google Cloud Storage bucket.
+
+
+
+
+#### Writing to partitioned parquet files
+
+For large datasets we may not want to write all the data to a single parquet files, but to a partitioned parquet file structure. Partitioning means to break a dataset by some attribute. Partitioning by date is often useful, because it may create an even distribution and it's also a natural way to query data.
+
+To implement it, we're going to use the [PyArrow](https://arrow.apache.org/docs/python/index.html) library.
+
+Create a Python generic data exporter and name it as `taxi_data_to_gcs_partitioned_parquet`. Make sure it's directly connected to the transformer.
+
+It's necessary to define where our credentials live. Instead of doing it through the config file (as it's done in `taxi_data_to_gcs_parquet` exporter), this time we're going to do it manually.
+
+Other variables needed `bucket_name`, `project_id`, `table_name`, and `root_path` (which actually is a combination of the bucket and the table names). Under the root path we'll have all the partitioned files.
+
+We want to partition by date, but we don't have a date column in the dataset, so we need to create it from the datetime ones.
+
+Then, to work with PyArrow, we need to define what's called a [PyArrow table](https://arrow.apache.org/docs/python/generated/pyarrow.Table.html) and read our pandas dataframe into it.
+
+We also have to define a [GCS filesystem object](https://arrow.apache.org/docs/python/generated/pyarrow.fs.GcsFileSystem.html), which is going to authorize using our environment variable `GOOGLE_APPLICATION_CREDENTIALS` automatically.
+
+Finally we use the [parquet write_to_dataset method](https://arrow.apache.org/docs/python/generated/pyarrow.parquet.write_to_dataset.html).
+
+Here is the script for the data exporter we just created.
+
+```py
+import pyarrow as pa
+import pyarrow.parquet as pq
+import os
+
+if 'data_exporter' not in globals():
+    from mage_ai.data_preparation.decorators import data_exporter
+
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/home/src/google_credentials_mage.json"
+bucket_name = "<your bucket name>"
+project_id = "<your project ID>"
+table_name = 'nyc_taxi_data'
+root_path = f"{bucket_name}/{table_name}"
+
+
+@data_exporter
+def export_data(data, *args, **kwargs):
+    data["tpep_pickup_date"] = data["tpep_pickup_datetime"].dt.date
+    table = pa.Table.from_pandas(data)
+    gcs = pa.fs.GcsFileSystem()
+
+    pq.write_to_dataset(
+        table=table,
+        root_path=root_path,
+        partition_cols=["tpep_pickup_date"],
+        filesystem=gcs,
+    )
+```
+
+Once it's successfully run, you will find in your GCS bucket the table `nyc_taxi_data` partitioned by date.
+
+
+
+## ETL: GCS to BigQuery
+
+In this we'll go over how to use Mage to load our data from GCS (data lake) to BigQuery (data warehouse). For this demo, we'll use the unpartitioned file.
+
+
+### Data loader
+
+Start a new batch pipeline and name it as `gcs_to_bigquery`. Create a Google Cloud Storage data loader and name it as `load_taxi_gcs`. In the script, edit the following variables:
+* bucket_name = "<your bucket name>"
+* object_key = "nyc_taxi_data.parquet".
+
+
+### Transformer
+
+A best practice in data engineering is to standarize column names, so this is what we're going to do in the transformation step. Add a transformer using the generic Python template, and name the block `transform_staged_data`.
+
+This transformation consists in replaceing any spaces with underscores and lower any capital letters.
+
+The script for the transformer is presented below.
+
+```py
+if 'transformer' not in globals():
+    from mage_ai.data_preparation.decorators import transformer
+if 'test' not in globals():
+    from mage_ai.data_preparation.decorators import test
+
+
+@transformer
+def transform(data, *args, **kwargs):
+    data.columns = (data.columns
+                    .str.replace(" ", "_")
+                    .str.lower()
+                    )
+
+    return data
+```
+
+
+
+### Data exporter
+
+Finally, let's export the data to BigQuery, with a new SQL data exporter that we call `taxi_data_to_bigquery`. For this, use the BigQuery default connection.
+
+Mage allows you to select data directly from the dataframe. Instead of writing a raw SQL query, indicate `ny_taxi` as the schema and `yellow_taxi_data` as the table name. Then write the query `SELECT * from {{ df_1 }}`, which will select all the rows from the previous dataframe and export them to our NY taxi schema and table.
+
+After the execution is completed, you can check in BigQuery that the data has been correctly loaded.
+
+
+
+## Scheduling
+
+To schedule your workflows, inside the pipeline, create a new trigger. For this example, choose a schedule trigger type. Name it as `gcs_to_bigquery_schedule` and select a daily frequency. Save the changes and enable the trigger.
+
+This way, you'll have your workflow scheduled and active in Mage.
+
+You can also [configure triggers through code](https://docs.mage.ai/orchestration/triggers/configure-triggers-in-code) using a `triggers.yaml` file under pipeline folder.
+
+
+
+## Parameterized execution
+
+In this section we'll see how to load partial datasets or load datasets that depend on some parameter. This is frequently referred to as parameterized execution: we have a DAG or pipeline, and its execution is dependent on some variable that we're supplying to the DAG.
+
+In Mage there are different types of [variables](https://docs.mage.ai/development/variables/overview). Here we'll introduce [runtime variables](https://docs.mage.ai/getting-started/runtime-variable) and how they work.
+
+In our specific example, we're going to use the Taxi dataset that we already loaded and show how you can create a different file for each day that your job is being run.
+
+To illustrate it, we'll use our `api_to_gcs` previous example and clone it (in the UI, go to the pipelines section and right clic on the one you want to clone). This will create an exact copy of the pipeline. Name it as `api_to_gcs_parameterized`.
+
+Delete the `taxi_data_to_gcs_partitioned_parquet` exporter block. Since what we change in a block will affect all the pipelines where the block is, create a new generic data exporter, name it as `taxi_data_to_gcs_parameter` and copy the code from the `taxi_data_to_gcs_parquet` data exporter; after that, remove this last one from the pipeline.
+
+Edit the block so that the data is saved in GCS based on the execution date, using a nested folder structure: `YYYY/MM/DD/daily_trips.parquet`. The runtime variable `execution_date` can be accessed via the `**kwargs` parameter in your block function, as presented below.
+
+```py
+@data_exporter
+def export_data_to_google_cloud_storage(df: DataFrame, **kwargs) -> None:
+    now = kwargs.get("execution_date")
+    now_fpath = now.strftime("%Y/%m/%d")
+
+
+    config_path = path.join(get_repo_path(), 'io_config.yaml')
+    config_profile = 'default'
+
+    bucket_name = '<your bucket name>'
+    object_key = f"{now_fpath}/daily_trips.parquet"
+
+    print(object_key)
+
+    GoogleCloudStorage.with_config(ConfigFileLoader(config_path, config_profile)).export(
+        df,
+        bucket_name,
+        object_key,
+    )
+```
+
+
+This was an example of a built-in parameterized execution, but there are also a number of custom ways to do this, so for example if you're triggering pipelines through an API in Mage you can supply parameters that way. You can also define [global variables](https://docs.mage.ai/getting-started/runtime-variable#creating-runtime-variables) from the pipeline editor view, by editing the pipeline `metadata.yaml` file, or inside the script.
+
+
+
+### Backfills
+
+Imagine you lost some data, or you had missing data, and you need to rerun those pipelines for multiple days, weeks, or months. Mage allows you to easily replicate lost data, or data for parameterized runs that you need to backfill. This can be very useful to backfill pipelines that depend on some variable, such as the execution date. Check out the documentation on [Backfilling pipelines](https://docs.mage.ai/orchestration/backfills/overview) for more details.
+
+From the pipeline view, click on _Backfills_ and create a new backfill with the appropriate settings:
+* Backfill name.
+* Start date and time.
+* End date and time.
+* Interval type.
+* Interval units.
+
+We use the parameterized exporter from the previous example, where we have a runtime `execution_date` variable. This is going to create a number of runs (based on the dates and interval type) and is going to assign the `execution_date` variable to each day, according to what we indicate in the backfill settings. Once is saved, we can just start the backfill.
+
+
+
+
+## Deployment
+
+In this section, we'll cover deploying Mage onto Google Cloud using Terraform.
+
+
+### Deployment prerequesites
+
+* Terraform.
+* Google Cloud CLI.
+* Google Cloud permissions to allow our service account to create the resources that will be necessary for our Mage project.
+* [Mage Terraform templates](https://github.com/mage-ai/mage-ai-terraform-templates).
+
+
+
+### Google Cloud permissions
+
+Once we have Terraform and Google Cloud CLI installed in our machine (already done in Module 1), we need to create permissions to run our Mage project. As specified in the [documentation on how to deploy to GCP with Terraform](https://docs.mage.ai/production/deploying-to-cloud/gcp/setup) these are the permissions we need:
+
+* Artifact Registry Reader.
+* Artifact Registry Writer.
+* Cloud Run Developer.
+* Cloud SQL Admin.
+* Service Account Token Creator.
+
+In the Google Cloud console, go to the IAM management dashboard and add the roles from above to the service account that will be used. Note that we already have an _Owner_ role, so this isn't actually necessary; but it's not a good practice to create roles with so many permissions ([Principle of least privilege](https://en.wikipedia.org/wiki/Principle_of_least_privilege)), so we should have the minimum permissions needed to do our work.
+
+
+### Deploying to Google Cloud
+
+Instead of in our local machine, we are now going to spin up our own Mage server in Google Cloud using one of the Mage Terraform templates.
+
+* Check that Google Cloud CLI is correctly installed and configured. To do so, you can run one of these commands:
+    ```bash
+    # list the authorized accounts
+    gcloud auth list
+
+    # list the buckets in your GC instance
+    gcloud storage ls
+    ```
+
+* Clone or download [Mage's Terraform template repository](https://github.com/mage-ai/mage-ai-terraform-templates). We're only interested in the GCP Terraform files, which can be found in the `gcp` folder.
+
+* [Customize Terraform settings](https://docs.mage.ai/production/deploying-to-cloud/gcp/setup#3-customize-terraform-settings).
+    + `variables.tf`.
+        - _project_id_.
+        - _region_.
+        - _zone_.
+        - _app_name_.
+        - _repository_.
+        - Add _credentials_ variable.
+            ```tf
+            variable "credentials" {
+              description = "Your credentials."
+              default     = "~/.google/credentials/google_credentials.json"
+            }
+            ```
+    * `main.tf`.
+        - Add a reference to the credentials in the provider section.
+            ```tf
+            provider "google" {
+                credentials = file(var.credentials)
+                project     = var.project_id
+                region      = var.region
+                zone        = var.zone
+            }
+            ```
+
+* Deploy the infrastructure, following [documentation](https://docs.mage.ai/production/deploying-to-cloud/gcp/setup#4-deploy).
+
+
+
+## Module 2 Homework
+
+[Link](./homework/).

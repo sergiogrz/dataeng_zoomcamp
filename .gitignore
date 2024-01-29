@@ -18,3 +18,7 @@ terraform.tfstate.backup
 mage_data
 magic-zoomcamp
 02_*/*.csv
+google_credentials_mage.json
+
+# Mage / Terraform / GCP
+gcp/

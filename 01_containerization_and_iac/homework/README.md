@@ -1,4 +1,4 @@
-## Module 1 Homework
+# Module 1 Homework
 
 > **NOTE**  
 > My solutions for this homework are in the [homework_mysolutions.md](./homework_mysolutions.md) file.

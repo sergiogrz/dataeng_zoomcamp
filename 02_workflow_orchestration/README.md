@@ -45,7 +45,7 @@
 
 ## Intro to orchestration
 
-Resources: [Slides](https://docs.google.com/presentation/d/17zSxG5Z-tidmgY-9l7Al1cPmz4Slh4VPK6o2sryFYvw).
+Resources: [Slides](./slides/01_Intro%20to%20Orchestration.pdf).
 
 A large part of data engineering is **extracting**, **transforming**, and **loading** data between sources. **Orchestration** is a process of dependency management, facilitated through **automation**. The data orchestrator manages scheduling, triggering, monitoring, and even resource allocation.
 
@@ -74,7 +74,7 @@ As one of the undercurrents, orchestration is key to the entire process of build
 
 Resources:
 * [Getting started repo](https://github.com/mage-ai/mage-zoomcamp).
-* [Slides](https://docs.google.com/presentation/d/1y_5p3sxr6Xh1RqE6N8o2280gUzAdiic2hPhYUUD6l88).
+* [Slides](./slides/02_Intro%20to%20Mage.pdf).
 
 
 ### What is Mage?
@@ -121,6 +121,12 @@ docker compose up -d
 ```
 
 Now, navigate to `localhost:6789` in your browser to access Mage UI.
+
+
+To stop the container, run:
+```bash
+docker compose down
+```
 
 
 **Mage repository structure**  

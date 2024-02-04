@@ -13,7 +13,7 @@ Once we have our Google Cloud account (see [Prerequisites](README.md#prerequisit
 3. Create a [service account key](https://cloud.google.com/iam/docs/keys-create-delete#creating). This is used to establish the identity of the service account, so that we can use it from outside of Google Cloud.
     * From the service accounts panel: `Actions` > `Manage keys` > `Add key` > `Create new key`.
     * Key type: JSON.
-4. The JSON file containing the key will be downloaded to your computer. Save it in a path of your choice (I save it as `~/.google/credentials/google_credentials.json`).
+4. The JSON file containing the key will be downloaded to your computer. Save it in a path of your choice (I save it as `/home/sgrodriguez/.google/credentials/google_credentials.json`).
 5. Download and install the Google Cloud CLI following the [documentation](https://cloud.google.com/sdk/docs/install-sdk#deb) for local setup.
 6. Set environment variable to point to your downloaded GCP keys:
    ```bash
@@ -25,3 +25,7 @@ Once we have our Google Cloud account (see [Prerequisites](README.md#prerequisit
    ```
 
 If everything works as expected you will get a notification in a new window confirming that you have successfully authenticated with the gcloud CLI. You should now be ready to work with GCP.
+
+Enable these APIs for your project:
+* [Identity and Access Management (IAM) API](https://console.cloud.google.com/apis/library/iam.googleapis.com).
+* [IAM Service Account Credentials API](https://console.cloud.google.com/apis/library/iamcredentials.googleapis.com).

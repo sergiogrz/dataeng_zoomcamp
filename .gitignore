@@ -24,3 +24,7 @@ google_credentials_mage.json
 
 # Mage / Terraform / GCP
 gcp/
+
+
+# dlt
+dlt_ipykernel_launcher.duckdb

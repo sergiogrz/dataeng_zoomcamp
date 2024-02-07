@@ -28,7 +28,7 @@ conda activate dataeng_zc
 
 * [Module 1 - Containerization and Infrastructure as Code](./01_containerization_and_iac/).
 * [Module 2 - Workflow orchestration](./02_workflow_orchestration/).
-* Workshop 1 - Data ingestion.
+* [Workshop 1 - Data ingestion](./workshop_data_ingestion/).
 * [Module 3 - Data Warehouse](./03_data_warehouse/).
 * Module 4 - Analytics engineering.
 * Module 5 - Batch processing.
@@ -40,4 +40,4 @@ conda activate dataeng_zc
 
 ## Overview
 
-<img src="./images/overview_diagram.jpeg" alt="overview diagram">
+<img src="./images/overview_diagram.jpg" alt="overview diagram">

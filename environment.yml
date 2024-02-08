@@ -11,3 +11,5 @@ dependencies:
     - notebook
     - pyarrow
     - google-cloud-storage
+    # workshop data ingestion
+    # - dlt[duckdb]

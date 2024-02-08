@@ -30,7 +30,7 @@ conda activate dataeng_zc
 * [Module 2 - Workflow orchestration](./02_workflow_orchestration/).
 * [Workshop 1 - Data ingestion](./workshop_data_ingestion/).
 * [Module 3 - Data Warehouse](./03_data_warehouse/).
-* Module 4 - Analytics engineering.
+* [Module 4 - Analytics engineering](./04_analytics_engineering/).
 * Module 5 - Batch processing.
 * Module 6 - Streaming.
 * Workshop 2 - Stream processing with SQL.

@@ -1,5 +1,7 @@
 # Data ingestion with dlt
 
+> Video of the workshop: [link](https://www.youtube.com/watch?v=oLXhBM7nf2Q).
+
 ​In this hands-on workshop, we’ll learn how to build data ingestion pipelines.
 
 ​We’ll cover the following steps:

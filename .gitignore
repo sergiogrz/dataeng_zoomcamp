@@ -3,7 +3,7 @@ data
 yellow_*.csv*
 green_*.csv*
 fhv_*.csv*
-taxi_zone_lookup.csv
+01*/*/taxi_zone_lookup.csv
 output.csv*
 .ipynb_checkpoints
 .env

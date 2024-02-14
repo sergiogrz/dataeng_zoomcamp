@@ -1,6 +1,6 @@
 # Module 3 Homework Solutions
 
-> **NOTE**  
+> [!NOTE]  
 > The SQL queries for this homework can also be found in the [hw_big_query.sql](./hw_big_query.sql) file.
 
 ## Setup

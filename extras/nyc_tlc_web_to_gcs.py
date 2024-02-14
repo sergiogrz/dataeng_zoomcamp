@@ -1,10 +1,13 @@
-import io
-import os
-import requests
-import pandas as pd
-from google.cloud import storage
 import argparse
 import logging
+import os
+import requests
+import yaml
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+from google.cloud import storage
+
 
 """
 Pre-reqs: 
@@ -26,8 +29,12 @@ logger.addHandler(console_handler)  # add the handler to the logger
 # switch out the bucketname
 BUCKET = os.environ.get("GCP_GCS_BUCKET", "dtc-data-lake-bucketname")
 
+# configuration files for schema and column names
+schema = "./schema.yml"
+rename_cols = "./rename_cols.yml"
 
-def upload_to_gcs(bucket, object_name, content):
+
+def upload_to_gcs(bucket, object_name, file_name):
     """
     Ref: https://cloud.google.com/storage/docs/uploading-objects#storage-upload-object-python
     """
@@ -39,7 +46,7 @@ def upload_to_gcs(bucket, object_name, content):
     client = storage.Client()
     bucket = client.bucket(bucket)
     blob = bucket.blob(object_name)
-    blob.upload_from_string(content)
+    blob.upload_from_filename(file_name)
 
 
 def web_to_gcs(params):
@@ -48,6 +55,14 @@ def web_to_gcs(params):
     months = params.months
     # https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2019-01.parquet
     base_url = "https://d37ci6vzurychx.cloudfront.net/trip-data"
+
+    # schema
+    with open(schema, "rb") as f:
+        service_schema = yaml.safe_load(f)[service]
+
+    # column names mapping
+    with open(rename_cols, "rb") as f:
+        service_rename_cols = yaml.safe_load(f)[service]
 
     for month in months:
         logger.info(f"Service: {service}, year: {year}, month: {month}")
@@ -58,9 +73,22 @@ def web_to_gcs(params):
 
         response = requests.get(url)
         if response.status_code == 200:
-            logger.info("Uploading Parquet file to GCS")
-            upload_to_gcs(BUCKET, f"{service}/{file_name}", response.content)
-            logger.info(f"Uploaded Parquet to GCS: {service}/{file_name}")
+            logger.info("Reading and formatting Parquet file to a DataFrame")
+            df = (pd.read_parquet(url,
+                                  engine="pyarrow",
+                                  columns=list(service_schema.keys()))
+                                  .astype(service_schema))
+            df = df.rename(columns=service_rename_cols)
+            logger.info("Saving formatted Parquet file locally")
+            # df.to_parquet(file_name, engine='pyarrow')
+            table = pa.Table.from_pandas(df)
+            pq.write_table(table, file_name)
+
+            # logger.info("Loading Parquet file to GCS")
+            # upload_to_gcs(BUCKET, f"{service}/{file_name}", file_name)
+            # logger.info(f"Uploaded Parquet to GCS: {service}/{file_name}")
+            # os.remove(file_name)
+            # logger.info(f"{file_name} removed locally")
 
         else:
             logger.warning(f"Failed to download Parquet from: {url}")

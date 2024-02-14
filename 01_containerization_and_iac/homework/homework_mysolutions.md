@@ -1,6 +1,6 @@
 # Module 1 Homework Solutions
 
-> **NOTE** 
+> [!NOTE] 
 > The queries used to answer the SQL questions can also be found in the [sql_queries.sql](./sql_queries.sql) script.
 
 ## Question 1. Knowing Docker tags

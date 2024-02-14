@@ -1,6 +1,6 @@
 # Module 1 Homework
 
-> **NOTE**  
+> [!NOTE]  
 > My solutions for this homework are in the [homework_mysolutions.md](./homework_mysolutions.md) file.
 > The queries used to answer the SQL questions can also be found in the [sql_queries.sql](./sql_queries.sql) script.
 

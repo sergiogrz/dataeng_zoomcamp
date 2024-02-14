@@ -1,6 +1,6 @@
 # Module 2 Homework
 
-> **NOTE**  
+> [!NOTE]  
 > My solutions for this homework are in the [homework_mysolutions.md](./homework_mysolutions.md) file.
 
 > In case you don't get one option exactly, select the closest one 

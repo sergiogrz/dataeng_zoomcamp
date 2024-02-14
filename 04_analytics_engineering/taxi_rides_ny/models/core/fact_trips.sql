@@ -58,4 +58,3 @@ inner join dim_zones as pickup_zone
 on trips_union.pu_location_id = pickup_zone.locationid
 inner join dim_zones as dropoff_zone
 on trips_union.do_location_id = dropoff_zone.locationid
---

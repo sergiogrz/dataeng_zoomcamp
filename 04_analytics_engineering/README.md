@@ -37,7 +37,7 @@
 * [Deployment of a dbt project](#deployment-of-a-dbt-project).
     + Deployment using dbt Cloud.
     + Continuous Integration
-* []().
+* [Data visualization with Looker Studio](#data-visualization-with-looker-studio).
 * [Advanced concepts](#advanced-concepts).
 * [Useful links](#useful-links).
 
@@ -708,6 +708,65 @@ CI is built on jobs: a CI job will do things such as build, test, etc. We can de
 dbt makes use of GitHub/GitLab's Pull Requests to enable CI via [webhooks](https://www.wikiwand.com/en/Webhook). When a PR is ready to be merged, a webhook is received in dbt Cloud that will enqueue a new run of a CI job. This run will usually be against a temporary schema that has been created explicitly for the PR. If the job finishes successfully, the PR can be merged into the main branch, but if it fails the merge will not happen.
 
 CI jobs can also be scheduled with the dbt Cloud scheduler, Airflow, cron and a number of additional tools.
+
+
+
+## Data visualization with Looker Studio
+
+After creating our models, transforming the data and deploying the models, we will now **visualize** the data.
+
+
+**Looker Studio** ([Link 1](https://lookerstudio.google.com/) / [Link 2](https://cloud.google.com/looker-studio?hl=en)) is an online tool for converting data into **reports** and **dashboards**.
+
+First we need to create a ***Data Source*** to access our Data Warehouse. Looker supports multiple sources. After authorizing Looker to access BigQuery, we will be able to select our project and datasets. We will connect to our `dbt_deployment.fact_trips` schema.
+
+After creating the data source, a new window will open with the _dimensions_ (table columns), the type of each dimension and the default aggregation for each dimension, as well as some metric. You may change the default aggregation as you see fit for each dimension. In our example, we set all of them to _None_, except for `passenger_count`, for which we choose the _Sum_ aggregation. We also leave the default metric `Record count` as it is. If you want to have some extra transformation field that should be only on the BI side, it could be added at this point. Here you can also change the name of the table for the report, and the data freshness frequency.
+
+A ***Report*** is essentially an empty canvas which can be filled with different widgets. The widgets that display data are called ***Charts***; widgets that modify the behavior of other charts are called ***Controls***. There are additional widgets for text, images and other elements to help improve the looks and readability of the report.
+
+We will now create a new report by clicking on the _Create report_ button at the top right of the Data Source window. A new window will open which will allow us to design our own custom report. An example table is already provided but you may delete it, since we will create our own from scratch.
+
+Add the first widget to the report. We want to show the amount of trips per day, so we'll choose a _Time Series Chart_. Looker will pick up the most likely dimensions for the chart, which for `fact_trips` happens to be `pickup_datetime`, but we need to add an additional dimension for breaking down the data, so we will drag an drop `service_type` into the widget sidebar, which should update with 2 lines, one for yellow taxi and another one for green taxi data. You may also move and resize the chart.
+
+As you may notice, there are some outliers that are messing up with our data (e.g., some record from 2079, which is clearly an error). To filter it, we add a _Date Range Control_, and set the dates from January 1st 2019 to December 31st 2020.
+
+> [!NOTE]:  
+> Controls affect all the Charts in the report.
+
+
+<img src="../images/04_dbt_looker_1.png" alt="looker first chart" style="width: 90%; height: auto;">
+
+
+Clicking on a chart will open the chart's sidebar with 2 tabs: the _Data_ tab contains all the specifics of the data to be displayed, and the _Style_ tab allows us to change the appearance of the chart.
+
+You may also add a text widget as a title for the chart.
+
+Let's add some other charts: a _Scorecard With Compact Numbers_ with the total record count in `fact_trips`, a _Pie chart_ displaying the `service_type` dimension using the record count metric and a _Table With Heatmap_ using `pickup_zone` as its dimension.
+
+Next, let's add a _Stacked Column Bar_ showing trips per month. Since we do not have that particular dimension, what we can do instead is to create a new field that will allow us to filter by month:
+1. In the _Available Fields_ sidebar, click on _Add a field_ at the bottom.
+1. Name the new field `pickup_month`.
+1. In the _Formula_ field, type `MONTH(pickup_datetime)`.
+1. Click on _Save_ and then on _Done_.
+1. Back in the main page, drag the new `pickup_month` field from the _Available fields_ sidebar to the _Dimension_ field in the _Data_ sidebar. Get rid of all breakdown dimensions.
+
+Our bar chart will now display trips per month but we still want to discriminate by year:
+
+1. Add a new field and name it `pickup_year`.
+1. Type in the formula `YEAR(pickup_datetime)`.
+1. Click on _Save_ and _Done_.
+1. Add the `pickup_year` field as a breakdown dimension for the bar chart.
+1. Change the _Sort_ dimension to `pickup_month` and make it ascending.
+
+Finally, add a _Drop-Down List Control_ and drag the `service_type` dimension to _Control field_. The drop-down control will now allow us to choose yellow, green or both taxi types. 
+
+Rename the report to _Trips analysis years 2019-2020_.
+
+You may click on the _View_ button at the top to check how the shared report will look to the stakeholders. Sharing the report works similarly to Google Drive document sharing.
+
+
+<img src="../images/04_dbt_looker_final_report.png" alt="looker final report" style="width: 90%; height: auto;">
+
 
 
 

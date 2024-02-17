@@ -1,6 +1,6 @@
 # Module 3 Homework
 
-> **NOTE**  
+> [!NOTE]  
 > My solutions for this homework are in the [homework_mysolutions.md](./homework_mysolutions.md) file.
 
 <b><u>Important Note:</b></u> <p> For this homework we will be using the 2022 Green Taxi Trip Record Parquet Files from the New York

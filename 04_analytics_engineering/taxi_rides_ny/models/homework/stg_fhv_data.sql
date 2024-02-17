@@ -18,6 +18,7 @@ select
     -- trip info
     sr_flag
 from {{ source('staging', 'fhv_taxi_data') }}
+where extract(year from pickup_datetime) = 2019
 
 
 -- dbt build --select <model.sql> --vars '{"is_test_run": false}'

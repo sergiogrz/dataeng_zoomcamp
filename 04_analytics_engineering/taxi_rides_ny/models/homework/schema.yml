@@ -1,0 +1,80 @@
+version: 2
+
+sources:
+  - name: staging
+    database: warm-rock-411419
+    schema: ny_taxi
+
+    tables:
+      - name: fhv_taxi_data
+
+models:
+  - name: stg_fhv_data
+    description: ""
+    columns:
+      - name: dispatching_base_num
+        data_type: string
+        description: ""
+
+      - name: pu_location_id
+        data_type: int64
+        description: ""
+
+      - name: do_location_id
+        data_type: int64
+        description: ""
+
+      - name: pickup_datetime
+        data_type: timestamp
+        description: ""
+
+      - name: dropoff_datetime
+        data_type: timestamp
+        description: ""
+
+      - name: sr_flag
+        data_type: int64
+        description: ""
+
+  - name: fact_fhv_trips
+    description: ""
+    columns:
+      - name: dispatching_base_num
+        data_type: string
+        description: ""
+
+      - name: service_type
+        data_type: string
+        description: ""
+
+      - name: pu_location_id
+        data_type: int64
+        description: ""
+
+      - name: pickup_borough
+        data_type: string
+        description: ""
+
+      - name: pickup_zone
+        data_type: string
+        description: ""
+
+      - name: dropoff_borough
+        data_type: string
+        description: ""
+
+      - name: dropoff_zone
+        data_type: string
+        description: ""
+
+      - name: pickup_datetime
+        data_type: timestamp
+        description: ""
+
+      - name: dropoff_datetime
+        data_type: timestamp
+        description: ""
+
+      - name: sr_flag
+        data_type: int64
+        description: ""

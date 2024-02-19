@@ -12,7 +12,7 @@ with fhv_data as (
 
 dim_zones as (
     select * from {{ ref('dim_zones') }}
-    where 'borough' != 'Unknown'
+    where borough != 'Unknown'
 )
 
 select

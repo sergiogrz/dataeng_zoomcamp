@@ -38,6 +38,7 @@
     + Deployment using dbt Cloud.
     + Continuous Integration
 * [Data visualization with Looker Studio](#data-visualization-with-looker-studio).
+* [Module 4 Homework](./homework/).
 * [Advanced concepts](#advanced-concepts).
 * [Useful links](#useful-links).
 
@@ -76,7 +77,7 @@ Some of the tools that the analytics engineer may be exposed to are:
 * Data loading ([Fivetran](https://www.fivetran.com/), [Stitch](https://www.stitchdata.com/), [Airbyte](https://airbyte.com/), [dlt](https://dlthub.com/), [Meltano](https://meltano.com/)).
 * Data storing (Data Warehouses, such as [Snowflake](https://www.snowflake.com/en/), [BigQuery](https://cloud.google.com/bigquery), [Redshift](https://aws.amazon.com/redshift/)).
 * Data modeling ([dbt](https://www.getdbt.com/), [SQLMesh](https://sqlmesh.com/), [Dataform](https://dataform.co/)).
-* Data presentation (BI tools like [Looker](https://www.looker.com/), [Tableau](https://www.tableau.com/), [Metabase](https://www.metabase.com/), [Apache Superset](https://superset.apache.org/)).
+* Data presentation (BI tools like [Looker](https://cloud.google.com/looker/?hl=en), [Tableau](https://www.tableau.com/), [Metabase](https://www.metabase.com/), [Apache Superset](https://superset.apache.org/)).
 
 
 In this lesson we will focus on the last two parts: data modeling and data presentation.
@@ -769,6 +770,11 @@ You may click on the _View_ button at the top to check how the shared report wil
 
 
 
+## Module 4 Homework
+
+[Link](./homework/).
+
+
 
 ## Advanced concepts
 
@@ -782,7 +788,7 @@ You may click on the _View_ button at the top to check how the shared report wil
 
 
 
- ## Useful links
+## Useful links
 
 - [Visualizing data with Metabase course](https://www.metabase.com/learn/visualization/).
 - [dbt free courses](https://courses.getdbt.com/collections).

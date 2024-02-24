@@ -52,7 +52,11 @@ By this stage of the course you should have already:
 - The following datasets ingested from the course [Datasets list](https://github.com/DataTalksClub/nyc-tlc-data/): 
   * Yellow taxi data - Years 2019 and 2020.
   * Green taxi data - Years 2019 and 2020.
-  * fhv data - Year 2019. 
+  * fhv data - Year 2019.
+
+
+> [!NOTE]  
+> For the last point, you can follow [these instructions](../extras/load_parquet_files_from_web_to_gcs/README.md) about loading parquet files from NYC TLC record data website to GCS, from the `extras` directory.
 
 
 

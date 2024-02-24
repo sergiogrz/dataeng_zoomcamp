@@ -7,6 +7,7 @@ fhv_*.csv*
 output.csv*
 .ipynb_checkpoints
 .env
+lib
 
 
 # Terraform

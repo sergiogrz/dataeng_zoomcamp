@@ -13,6 +13,8 @@ Taught by [DataTalksClub](https://github.com/DataTalksClub).
     + Python (v3.9).
     + Google Cloud CLI (v460.0.0).
     + Terraform (v1.7.0).
+    + Java (OpenJDK v1.8.0).
+    + Spark (v3.3.3).
 
 * Python package requirements: listed in [environment.yml](./environment.yml).
 
@@ -31,10 +33,16 @@ conda activate dataeng_zc
 * [Workshop 1 - Data ingestion](./workshop_data_ingestion/).
 * [Module 3 - Data Warehouse](./03_data_warehouse/).
 * [Module 4 - Analytics engineering](./04_analytics_engineering/).
-* Module 5 - Batch processing.
+* [Module 5 - Batch processing](./05_batch_processing/).
 * Module 6 - Streaming.
 * Workshop 2 - Stream processing with SQL.
 * Project.
+
+
+## Extras
+
+* [Load parquet files from NYC TLC record data website to GCS](./extras/load_parquet_files_from_web_to_gcs/).
+* [Convert CSV files from DataTalksClub backup to Parquet](./extras/convert_csv_to_parquet/).
 
 
 

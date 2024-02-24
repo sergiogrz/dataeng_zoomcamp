@@ -13,3 +13,4 @@ dependencies:
     - google-cloud-storage
     # workshop data ingestion
     # - dlt[duckdb]
+    - pyspark==3.3.3

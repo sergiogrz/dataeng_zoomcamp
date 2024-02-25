@@ -1,10 +1,13 @@
-## Week 5 Homework 
+# Week 5 Homework 
+
+> [!NOTE]  
+> My solutions for this homework are in the [homework_mysolutions.ipynb](./homework_mysolutions.ipynb) file.
 
 In this homework we'll put what we learned about Spark in practice.
 
 For this homework we will be using the FHV 2019-10 data found here. [FHV Data](https://github.com/DataTalksClub/nyc-tlc-data/releases/download/fhv/fhv_tripdata_2019-10.csv.gz)
 
-### Question 1: 
+## Question 1: 
 
 **Install Spark and PySpark** 
 
@@ -18,7 +21,7 @@ What's the output?
 > [!NOTE]
 > To install PySpark follow this [guide](https://github.com/DataTalksClub/data-engineering-zoomcamp/blob/main/05-batch/setup/pyspark.md)
 
-### Question 2: 
+## Question 2: 
 
 **FHV October 2019**
 
@@ -35,7 +38,7 @@ What is the average size of the Parquet (ending with .parquet extension) Files t
 
 
 
-### Question 3: 
+## Question 3: 
 
 **Count records** 
 
@@ -51,7 +54,7 @@ Consider only trips that started on the 15th of October.
 > [!IMPORTANT]
 > Be aware of columns order when defining schema
 
-### Question 4: 
+## Question 4: 
 
 **Longest trip for each day** 
 
@@ -64,11 +67,11 @@ What is the length of the longest trip in the dataset in hours?
 
 
 
-### Question 5: 
+## Question 5: 
 
 **User Interface**
 
-Spark’s User Interface which shows the application's dashboard runs on which local port?
+Spark's User Interface which shows the application's dashboard runs on which local port?
 
 - 80
 - 443
@@ -77,7 +80,7 @@ Spark’s User Interface which shows the application's dashboard runs on which l
 
 
 
-### Question 6: 
+## Question 6: 
 
 **Least frequent pickup location zone**
 

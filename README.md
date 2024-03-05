@@ -34,7 +34,7 @@ conda activate dataeng_zc
 * [Module 3 - Data Warehouse](./03_data_warehouse/).
 * [Module 4 - Analytics engineering](./04_analytics_engineering/).
 * [Module 5 - Batch processing](./05_batch_processing/).
-* Module 6 - Streaming.
+* [Module 6 - Stream processing](./06_stream_processing/).
 * Workshop 2 - Stream processing with SQL.
 * Project.
 

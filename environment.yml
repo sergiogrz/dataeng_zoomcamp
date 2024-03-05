@@ -14,3 +14,10 @@ dependencies:
     # workshop data ingestion
     # - dlt[duckdb]
     - pyspark==3.3.3
+    # kafka module
+    - kafka-python
+    - confluent-kafka
+    - requests
+    - avro
+    - fastavro
+    - faust

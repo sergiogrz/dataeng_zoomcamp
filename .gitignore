@@ -8,6 +8,7 @@ output.csv*
 .ipynb_checkpoints
 .env
 lib
+__pycache__
 
 
 # Terraform
@@ -29,3 +30,11 @@ gcp/
 
 # dlt
 dlt_ipykernel_launcher.duckdb
+
+
+# Kafka
+datatalksclub.stream.*data
+
+
+# Keep this
+!06_stream_processing/data

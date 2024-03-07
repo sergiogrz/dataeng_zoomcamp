@@ -20,4 +20,4 @@ dependencies:
     - requests
     - avro
     - fastavro
-    - faust
+    - faust-streaming

@@ -2,8 +2,8 @@
 
 > Course video sources: videos `6.x.x` from the [DE Zoomcamp playlist](https://www.youtube.com/watch?v=hfvju3iOIP0&list=PL3MmuxUbc_hJed7dXYoJw8DoCuVHhGEQb).  
 > Other resources:
+> * [**Álvaro Navas notes**](https://github.com/ziritrion/dataeng-zoomcamp/blob/main/notes/6_streaming.md): these have been used as the primary source for most sections of this module, since I found the videos somewhat not very explanatory and clear.
 > * [Slides](./slides/).
-> * [Álvaro Navas notes](https://github.com/ziritrion/dataeng-zoomcamp/blob/main/notes/6_streaming.md).
 
 
 
@@ -37,7 +37,34 @@
   - [Installing Kafka via Docker Compose](#installing-kafka-via-docker-compose)
   - [Demo: setting up a producer and a consumer](#demo-setting-up-a-producer-and-a-consumer)
 - [Avro and Schema Registry](#avro-and-schema-registry)
+  - [Why are schemas needed?](#why-are-schemas-needed)
+  - [Introduction to Avro](#introduction-to-avro)
+  - [Schema compatibility](#schema-compatibility)
+  - [Avro schema evolution](#avro-schema-evolution)
+  - [Schema registry](#schema-registry)
+  - [Dealing with incompatible schemas](#dealing-with-incompatible-schemas)
+  - [Avro demo](#avro-demo)
+    - [Defining schemas](#defining-schemas)
+    - [Producer](#producer)
+    - [Consumer](#consumer)
+    - [Run the demo](#run-the-demo)
 - [Kafka Streams](#kafka-streams)
+  - [What is Kafka Streams](#what-is-kafka-streams)
+  - [Streams vs State](#streams-vs-state)
+  - [Streams topologies and features](#streams-topologies-and-features)
+  - [Kafka Streams - Faust demo (1)](#kafka-streams---faust-demo-1)
+  - [Joins in Streams](#joins-in-streams)
+  - [Timestamps](#timestamps)
+  - [Windowing](#windowing)
+  - [Kafka Streams - Faust demo (2): windowing](#kafka-streams---faust-demo-2-windowing)
+  - [Additional Streams features](#additional-streams-features)
+    - [Stream tasks and threading model](#stream-tasks-and-threading-model)
+    - [Joins](#joins)
+    - [Global KTable](#global-ktable)
+    - [Interactive queries](#interactive-queries)
+    - [Processing guarantees](#processing-guarantees)
+- [Kafka Connect](#kafka-connect)
+- [ksqlDB](#ksqldb)
 
 
 
@@ -400,10 +427,10 @@ We will now create a demo of a Kafka system with a producer and a consumer and s
 
 1. Prerequisites: Python packages needed for this module, listed in [environment.yml](../environment.yml): `kafka-python`, `confluent-kafka`, `requests`, `avro`, `fastavro`, `faust`.
 2. In the Control Center GUI, select the `Cluster 1` cluster and in the topic section, create a new `demo_1` topic with 2 partitions and default settings.
-3. Run the `producer.py` script.
+3. Run the [producer.py](./scripts/producer.py) script.
     * This script registers to Kafka as a producer and sends a message each second until it sends 1000 messages.
     * With the script running, you should be able to see the messages in the Messages tab of the `demo_1` topic window in Control Center.
-4. In a new terminal, run the `consumer.py` script.
+4. In a new terminal, run the [consumer.py](./scripts/consumer.py) script.
     * Before running it, make sure the first argument of `consumer = KafkaConsumer()` is `"demo_1"`, and the `group_id` is `"consumer.group.id.demo.1"`.
     * This script registers to Kafka as a consumer and continuously reads messages from the topic, one message each second.
     * You should see the consumer read the messages in sequential order. 
@@ -416,9 +443,226 @@ We will now create a demo of a Kafka system with a producer and a consumer and s
 
 ## Avro and Schema Registry
 
+### Why are schemas needed?
+
+Kafka messages can be anything, from plain text to binary objects. This makes Kafka very flexible, but it can lead to situations where consumers can't understand messages from certain producers because of incompatibility (like a producer sending a PHP object to a Python consumer).
+
+```mermaid
+flowchart LR
+    p{{PHP producer}}
+    k((kafka))
+    c{{non-PHP consumer}}
+    p--> |PHP object|k -->|wtf is this?|c
+    style c fill:#f00
+```
+
+In order to solve this, we can introduce a **schema** to the data so that producers can define the kind of data they're pushing and consumers can understand it.
+
+
+### Introduction to Avro
+
+[Serialization](https://www.wikiwand.com/en/Serialization) is the process of translating a data structure or object state into a structure that can be stored (e.g. files in secondary storage devices, data buffers in primary storage devices) or transmitted (e.g. data streams over computer networks) and reconstructed later (possibly in a different computer environment)
+
+[**Avro**](https://avro.apache.org/) is a **data serialization system**. Unlike other serialization systems such as [Protocol Buffers (Protobuf)](https://protobuf.dev/) or [JSON](https://www.json.org/json-en.html), Avro stores the **schema separated from the record**. You need a separate Avro schema in order to read an Avro record. Records in Avro are stored using binary encoding and schemas are defined with JSON or [IDL](https://avro.apache.org/docs/1.8.1/idl.html).
+
+These features result in 3 main advantages:
+* **Smaller record filesize** compared to other formats such as JSON.
+* **Schema evolution**: you can evolve the schema overtime without breaking the consumers.
+* Avro clients provide **automatic validation** against schemas. If you try to push an incompatible schema between versions, the Kafka Avro client will not allow you to do so.
+
+Avro is supported by Kafka. Protobuf is also supported but we will focus on Avro for this lesson.
 
 
 
+### Schema compatibility
+
+Let's supose that we use JSON instead of Avro for serializing data and sending messages.
+
+```mermaid
+flowchart LR
+    p{{producer}}
+    k((kafka))
+    c{{consumer}}
+    p --->|"{<br/>id: String,<br/>name: String,<br/>age: Int<br/>}"|k -->|ok| c
+```
+
+Because the schema is implicit in JSON, the consumer has to assume that `id` and `name` will be strings and `age` is an integer. Let's say that for whatever reason we need to update the schema and change `age` to a String as well:
+
+```mermaid
+flowchart LR
+    p{{producer}}
+    k((kafka))
+    c{{consumer}}
+    p --->|"{<br/>id: String,<br/>name: String,<br/>age: String<br/>}"|k -->|error!| c
+    style c fill:#f00
+```
+
+If we haven't updated the consumer to understand the new schema, then the consumer will be unable to parse the message because it's expecting an integer rather than a string. In distributed systems where we do not have 100% certainty of who the consumer for the data will be, we cannot afford producing incompatible messages.
+
+We can think of the _relationship_ between producers and consumers as a **contract**: both parts agree to communicate according to a standard and it's imperative that the contract is maintained.  If the contract needs updating, then it's best to do so without explicitly "talking" to them (modifying each individual part), instead we could have a system that automatically validates this contract and keep it updated.
+
+A **schema registry** is such a system. The schema registry contains the schemas we define for our messages. Avro fetches the schema for each message and validates that any changes to the schema registry are compatible with previous versions.
+
+
+
+### Avro schema evolution
+
+We can define 3 different kinds of evolutions for schemas:
+* **Backward compatibility**: producers using older schemas generate messages that can be read by consumers using newer schemas.
+* **Forward compatibility**: producers using newer schemas generate messages that can be read by consumers using older schemas.
+    * Consumers can read all records in the topic.
+* **Mixed/hybrid versions**: ideal condition where schemas are both forward and backward compatible.
+
+
+
+### Schema registry
+
+[Schema Registry](https://docs.confluent.io/platform/current/schema-registry/index.html) is a component that stores schemas and can be accessed by both producers and consumers to fetch them.
+
+This is the usual workflow of a working schema registry with Kafka:
+
+```mermaid
+flowchart LR
+    p(producer)
+    r{{schema registry}}
+    k{{kafka broker}}
+    p -->|1. Topic ABC, Schema v1|r
+    r -->|2. ok|p
+    p -->|3. Messages for Topic ABC, Schema v1|k
+```
+1. The producer checks with the schema registry, informing it that it wants to post to topic ABC with schema v1.
+2. The registry checks the schema.
+    * If no schema exists for the topic, it registers the schema and gives the ok to the producer.
+    * If a schema already exists for the topic, the registry checks the compatibility with both the producer's and the registered schemas.
+        * If the compatibility check is successful, the registry sends a message back to the producer giving the OK to start posting messages.
+        * If the check fails, the registry tells the producer that the schema is incompatible and the producer returns an error.
+3. The producer starts sending messages to the ABC topic using the v1 schema to a Kafka broker.
+
+When the consumer wants to consume from a topic, it checks with the schema registry which version to use. If there are multiple schema versions and they're all compatible, then the consumer could use a different schema than the producer.
+
+
+
+
+### Dealing with incompatible schemas
+
+There are instances in which schemas must be updated in ways that break compatibility with previous ones.
+
+In those cases, the best way to proceed is to create a new topic for the new schema and add a downstream service that converts messages from the new schema to the old one and publishes the converted messages to the original topic. This will create a window in which services can be migrated to use the new topic progressively.
+
+```mermaid
+flowchart LR
+    p{{producer}}
+    subgraph t[topics]
+        t1[schema v1]
+        t2[schema v2]
+    end
+    c{{message<br/>converter}}
+    subgraph S1[migrated services]
+        s1{{consumer}}
+        s2{{consumer}}
+    end
+    subgraph S2[services yet to migrate]
+        s3{{consumer}}
+        s4{{consumer}}
+    end
+    p --> t2
+    t2 --> c
+    c --> t1
+    t1 --> s3 & s4
+    t2 --> s1 & s2
+```
+
+
+
+### Avro demo
+
+We will now create a demo in which we will see Schema Registry and Avro in action. The scripts for this demo can be found in the [avro_demo](./scripts/avro_demo/) folder.
+
+In the docker compose file we used in the previous demo there's a `schema-registry` service that uses [Confluent's Schema Registry](https://docs.confluent.io/platform/current/schema-registry/). The docker container will run locally and bind to port 8081, which we will make use of in the following scripts.
+
+
+#### Defining schemas
+
+Schemas are defined using JSON syntax and saved to `asvc` files. We will define 2 schemas: a schema for the message key and another for the message value.
+- The **message key schema** ([taxi_ride_key.avsc](./scripts/avro_demo/taxi_ride_key.avsc)) contains basic info that allows us to identify the message.
+    ```json
+    {
+    "namespace": "com.datatalksclub.taxi",
+    "type": "record",
+    "name": "TaxiRideKey",
+    "fields": [
+        {
+        "name": "vendorId",
+        "type": "int"
+        }
+    ]
+    }
+    ```
+- The **message value schema** ([taxi_ride_value.avsc](./scripts/avro_demo/taxi_ride_value.avsc)) defines the schema of the actual info we will be sending. This schema is to be used with the [rides.csv](./data/rides.csv) file, which contains a few taxi rides already prepared for the example.
+    ```json
+    {
+    "namespace": "com.datatalksclub.taxi",
+    "type": "record",
+    "name": "TaxiRide",
+    "fields": [
+        {
+        "name": "vendorId",
+        "type": "int"
+        },
+        {
+        "name": "passenger_count",
+        "type": "int"
+        },
+        {
+        "name": "trip_distance",
+        "type": "float"
+        },
+        {
+        "name": "payment_type",
+        "type": "int"
+        },
+        {
+        "name": "total_amount",
+        "type": "float"
+        }
+    ]
+    }
+    ```
+
+
+#### Producer
+
+The [producer.py](./scripts/avro_demo/producer.py) script will do the following:
+* Import the `avro` and `avroProducer` libraries from `confluent_kafka`.
+* Define a `load_avro_schema_from_file()` function which reads the 2 schema files we defined above.
+* In the main `send_record()` method:
+    * We define both the kafka broker and the schema registry URLs as well as the `acks` behavior policy.
+    * We instantiate an `AvroProducer` object.
+    * We load the data from the CSV file.
+    * We create both key and value dictionaries from each row in the CSV file.
+    * For each key-value pair, we call the `AvroProducer.produce()` method which creates an Avro-serialized message and publishes it to Kafka using the provided topic (`datatalkclub.yellow_taxi_rides` in this example) in its arguments.
+    * We catch the exceptions if sending messages fails, or we print a success message otherwise.
+    * We flush and sleep for one second to make sure that no messages are queued and to force sending a new message each second.
+
+
+
+#### Consumer
+
+The [consumer.py](./scripts/avro_demo/consumer.py) script will do the following:
+* Import `AvroConsumer` from `confluent_kafka.avro`.
+* Define the necessary consumer settings (kafka and registry URLs, consumer group id and auto offset reset policy).
+* Instantiate an `AvroConsumer` object and subscribes to the `datatalkclub.yellow_taxi_rides` topic.
+* We enter a loop in which every 5 milliseconds we poll the `AvroConsumer` object for messages. If we find a message, we print it and we _commit_ (because we haven't set autocommit like in the previous example).
+
+
+
+#### Run the demo
+
+1. Run the `producer.py` script and on a separate terminal run the `consumer.py` script. You should see the messages printed in the consumer terminal with the schema we defined. Stop both scripts.
+2. Modify the `taxi_ride_value.avsc` schema file and change a data type to a different one (for example, change `total_amount` from `float` to `string`). Save it.
+3. Run the `producer.py` script again. You will see that it won't be able to create new messages because an exception is happening.
+
+When `producer.py` first created the topic and provided a schema, the registry associated that schema with the topic. By changing the schema, when the producer tries to subscribe to the same topic, the registry detects an incompatiblity because the new schema contains a string, but the scripts explicitly uses a `float` in `total_amount`, so it cannot proceed.
 
 
 
@@ -427,8 +671,232 @@ We will now create a demo of a Kafka system with a producer and a consumer and s
 
 [Kafka Streams concepts](https://docs.confluent.io/platform/current/streams/concepts.html).
 
----
 
-TO DO
+### What is Kafka Streams
 
----
+[Kafka Streams](https://kafka.apache.org/documentation/streams/) is a _client library_ for building applications and services whose input and output are stored in Kafka clusters. In other words: _Streams applications_ consume data from a Kafka topic and produce it back into another Kafka topic.
+
+Kafka Streams is fault-tolerant and scalable, and apps using the Streams library benefit from these features: new instances of the app can be added or killed and Kafka will balance the load accordingly. Streams can process events with latency of miliseconds, making it possible for applications to deal with messages as soon as they're available. Streams also provides a convenient [Domain Specific Language (Streams DSL)](https://docs.confluent.io/platform/current/streams/developer-guide/dsl-api.html) that simplifies the creation of Streams services.
+
+Kafka Streams is both powerful and simple to use. Other solutions like Spark or Flink are considered more powerful but they're much harder to use, and simple Kafka consumers (like the ones we've created so far) are simple but not as powerful as apps using Streams. However, keep in mind that Streams apps can only work with Kafka; if you need to deal with other sources then you need other solutions.
+
+
+
+### Streams vs State
+
+When dealing with streaming data, it's important to make the distinction between these 2 concepts:
+
+* ***Streams*** (aka ***KStreams***) are _individual messages_ that are read sequentially.
+* ***State*** (aka ***KTable***) can be thought of as a _stream changelog_: essentially a table which contains a _view_ of the stream at a specific point of time.
+    * KTables are also stored as topics in Kafka.
+
+
+<img src="../images/06_kstream_vs_ktable.png" alt="kstream vs ktable" style="width: 50%; height: auto;">
+
+
+
+
+### Streams topologies and features
+
+A **topology** (short for _processor topology_) defines the _stream computational logic_ for our app. In other words, it defines how input data is transformed into output data.
+
+Essentially, a topology is a graph of _stream processors_ (the graph nodes) which are connected by _streams_ (the graph edges). A topology is a useful abstraction to design and understand Streams applications.
+
+A **stream processor** is a node which represents a processing step (i.e. it transforms data), such as map, filter, join or aggregation.
+
+Stream processors (and thus topologies) are defined via the imperative Processor API or with the declarative, functional DSL. We will focus on DSL in this lesson.
+
+Kafka Streams provides a series of features which stream processors can take advantage of, such as:
+* Aggregates (count, groupby).
+* Stateful processing (stored internally in a Kafka topic).
+* Joins (KStream with Kstream, KStream with KTable, Ktable with KTable).
+* [Windows](https://kafka.apache.org/20/documentation/streams/developer-guide/dsl-api.html#windowing) (time based, session based).
+    * A window is a group of records that have the same key, meant for stateful operations such as aggregations or joins.
+
+
+
+### Kafka Streams - Faust demo (1)
+
+The native language to develop for Kafka Streams is Scala; we will use the [Faust library](https://faust-streaming.github.io/faust/index.html) instead because it allows us to create Streams apps with Python.
+
+The scripts for this demo can be found in the [streams_faust_demo](./scripts/streams_faust_demo/) folder.
+
+
+1. [producer_tax_json.py](./scripts/streams_faust_demo/producer_tax_json.py) will be the main producer.
+    * Instead of sending Avro messages, we will send simple JSON messages for simplicity.
+    * We instantiate a `KafkaProducer` object, read from the CSV file used in the previous block, create a key with `vendorId` matching the row of the CSV file and the value is a JSON object with the values in the row.
+    * We post to the `datatalksclub.yellow_taxi_ride.json` topic.
+        * You will need to create this topic in the Control Center.
+    * One message is sent per second, as in the previous examples.
+2. [stream.py](./scripts/streams_faust_demo/stream.py) is the actual Faust application.
+    * We first instantiate a `faust.App` object which declares the _app id_ (like the consumer group id) and the Kafka broker which we will talk to.
+    * We also define a topic, which is `datatalksclub.yellow_taxi_ride.json`.
+        * The `value_types` param defines the datatype of the message value; we've created a custom `TaxiRide` class for it which is available [in this `taxi_ride.py` file](./scripts/streams_faust_demo/taxi_rides.py).
+    * We create a _stream processor_ called `start_reading()` using the `@app.agent()` decorator.
+        * In Streams, and ***agent*** is a group of ***actors*** processing a stream, and an _actor_ is an individual instance.
+        * We use `@app.agent(topic)` to point out that the stream processor will deal with our `topic` object.
+        * `start_reading(records)` receives a stream named `records` and prints every message in the stream as it's received.
+        * Finally, we call the `main()` method of our `faust.App` object as an entry point.
+    * You will need to run this script as `python stream.py worker` .
+3. [stream_count_vendor_trips.py](./scripts/streams_faust_demo/stream_count_vendor_trips.py) is another Faust app that showcases creating a state from a stream:
+    * Like the previous app, we instantiate an `app` object and a topic.
+    * We also create a KTable with `app.Table()` in order to keep a state:
+        * The `default=int` param ensures that whenever we access a missing key in the table, the value for that key will be initialized as such (since `int()` returns 0, the value will be initialized to 0).
+    * We create a stream processor called `process()` which will read every message in `stream` and write to the KTable.
+        * We use `group_by()` to _repartition the stream_ by `TaxiRide.vendorId`, so that every unique `vendorId` is delivered to the same agent instance.
+        * We write to the KTable the number of messages belonging to each `vendorId`, increasing the count by one each time we read a message. By using `group_by` we make sure that the KTable that each agent handles contains the correct message count per each `vendorId`.
+    * You will need to run this script as `python stream_count_vendor_trips.py worker` .
+* [branch_price.py](./scripts/streams_faust_demo/branch_price.py) is a Faust app that showcases ***branching***:
+    * We start by instancing an app object and a _source_ topic which is, as before, `datatalksclub.yellow_taxi_ride.json`.
+    * We also create 2 additional new topics: `datatalks.yellow_taxi_rides.high_amount` and `datatalks.yellow_taxi_rides.low_amount`
+    * In our stream processor, we check the `total_amount` value of each message and ***branch***:
+        * If the value is below the `40` threshold, the message is reposted to the `datatalks.yellow_taxi_rides.low_amount` topic.
+        * Otherwise, the message is reposted to `datatalks.yellow_taxi_rides.high_amount`.
+    * You will need to run this script as `python branch_price.py worker`.
+
+
+
+
+### Joins in Streams
+
+Streams support the following Joins:
+* **Outer**
+* **Inner**
+* **Left**
+
+Tables and streams can also be joined in different combinations:
+* **Stream to stream join** - always **windowed** (you need to specify a certain timeframe).
+* **Table to table join** - always NOT windowed.
+* **Stream to table join**.
+
+You may find out more about how they behave [in this link](https://www.codecentric.de/wissens-hub/blog/crossing-streams-joins-apache-kafka).
+
+The main difference is that joins between streams are _windowed_ ([see below](#windowing)), which means that the joins happen between the "temporal state" of the window, whereas joins between tables aren't windowed and thus happen on the actual contents of the tables.
+
+
+
+
+### Timestamps
+
+So far we have covered the key and value attributes of a Kafka message but we have not covered the timestamp.
+
+Every event has an associated notion of time. Kafka Streams bases joins and windows on these notions. We actually have multiple timestamps available depending on our use case:
+* **Event time** (extending `TimestampExtractor`): timestamp built into the message which we can access and recover.
+* **Processing time**: timestamp in which the message is processed by the stream processor.
+* **Ingestion time**: timestamp in which the message was ingested into its Kafka broker.
+
+
+
+
+### Windowing
+
+In Kafka Streams, ***windows*** refer to a time reference in which a series of events happen.
+
+There are 2 main kinds of windows:
+
+* **Time-based windows**
+    * **Fixed/tumbling**: windows have a predetermined size (in seconds or whichever time unit is adequate for the use case) and don't overlap - each window happens one after another.
+    * **Sliding**: windows have a predetermined size but there may be multiple "timelines" (or _slides_) happening at the same time. Windows for each slide have consecutive windows.
+* **Session-based windows**: windows are based on keys rather than absolute time. When a key is received, a _session window_ starts for that key and ends when needed. Multiple sessions may be open simultaneously.
+
+
+
+
+### Kafka Streams - Faust demo (2): windowing
+
+Let's now see an example of windowing in action.
+
+* [windowing.py](./scripts/streams_faust_demo/windowing.py) is a very similar app to `stream_count_vendor_trips.py` but defines a ***tumbling window*** for the table.
+    * The window will be of 1 minute in length.
+    * When we run the app and check the window topic in Control Center, we will see that each key (one per window) has an attached time interval for the window it belongs to and the value will be the key for each received message during the window.
+    * You will need to run this script as `python windowing.py worker` .
+
+
+
+
+### Additional Streams features
+
+Many of the following features are available in the official Streams library for the JVM but aren't available yet in alternative libraries such as Faust.
+
+
+
+#### Stream tasks and threading model
+
+In Kafka Streams, each topic partition is handled by a **task**. Tasks can be understood as a mechanism for Kafka to handle parallelism, regardless of the amount of computing **threads** available to the machine.
+
+<img src="../images/06_kafka_streams_tasks.jpeg" alt="kafka streams tasks" style="width: 50%; height: auto;">
+
+Kafka also allows us to define the amount of threads to use. State is NOT shared within threads even if they run in a single instance; this allows us to treat threads within an instance as if they were threads in separate machines. Scalability is handled by the Kafka cluster.
+
+<img src="../images/06_kafka_streams_threads_1.png" alt="kafka streams threads" style="width: 50%; height: auto;">
+⬇︎
+<img src="../images/06_kafka_streams_threads_2.png" alt="kafka streams threads" style="width: 50%; height: auto;">
+
+
+
+
+#### Joins
+
+In Kafka Streams, join topics should have the _same partition count_.
+
+Remember that joins are based on keys, and partitions are assigned to instances. When doing realtime joins, identical keys between the 2 topics will be assigned to the same partition, as shown in the previous image.
+
+If you're joining external topics and the partitions don't match, you may need to create new topics recreating the data and repartition these new topics as needed. In Spark this wouldn't be necessary.
+
+
+
+
+#### Global KTable
+
+A ***global KTable*** is a KTable that acts like a _broadcast variable_. All partitions of a global KTable are stored in all Kafka instances.
+
+The benefits of global KTables are more convenient and effective joins and not needing to co-partition data, but the drawbacks are increased local storage and network load. Ideally, global KTables should be reserved for smaller data.
+
+
+
+
+
+#### Interactive queries
+
+Let's assume that you have a Kafka Streams app which captures events from Kafka and you also have another app which would benefit from querying the data of your Streams app. Normally, you'd use an external DB to write from your Streams app and the other apps would query the DB.
+
+***Interactive queries*** is a feature that allows external apps to query your Streams app directly, without needing an external DB.
+
+Assuming that you're running multiple instances of your Streams app, when an external app requests a key to the Streams app, the load balancer will fetch the key from the appropiate Streams app instance and return it to the external app. This can be achieved thanks to the _Interactive queries-RPC API_.
+* `KafkaStreams#allMetadata()`
+* `KafkaStreams#allMetadataForStore(String storeName)`
+* `KafkaStreams#metadataForKey(String storeName, K key, Serializer<K> keySerializer)`
+* `KafkaStreams#metadataForKey(String storeName, K key, StreamPartitioner<K, ?> partitiones)`
+
+
+
+
+#### Processing guarantees
+
+Depending on your needs, you may specify the message ***processing guarantee***:
+* At least once: messages will be read but the system will not check for duplicates.
+* Exactly once: records are processed once, even if the producer sends duplicate records.
+
+You can find more about processing guarantees and their applications [in this link](https://docs.confluent.io/platform/current/streams/concepts.html#processing-guarantees).
+
+
+
+
+
+## Kafka Connect
+
+[Kafka Connect](https://docs.confluent.io/platform/current/connect/index.html#kafka-connect) is a tool which allows us to stream data between external applications and services to/from Kafka. It works by defining ***connectors*** which external services connect to. Services from which data is pulled from are called ***sources*** and services which we send data to are called ***sinks***.
+
+<img src="../images/06_kafka_connect.png" alt="kafka connect" style="width: 50%; height: auto;">
+
+
+
+## ksqlDB
+
+[ksqlDB](https://ksqldb.io/) is a tool for specifying stream transformations in SQL such as joins. The output of these transformations is a new topic.
+
+<img src="../images/06_ksql_db.png" alt="ksqlDB" style="width: 50%; height: auto;">
+
+ksqlDB offers consumers such as Data Scientists a tool for analyzing Kafka streams: instead of having to rely on Data Engineers to deliver consumable data to a Data Warehouse, Scientists can now directly query Kafka to generate consumable data on the fly.
+
+However, KSQL isn't mature yet and lacks many useful features for Data Engineers (are the topics formatted with Avro, or are they JSON or just strings? How do you maintain the code? Do we need to manage a resource-intensive KSQL cluster just for occasional queries? etc.)
